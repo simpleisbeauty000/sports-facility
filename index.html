@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sports Booking Tracker (Cloud)</title>
+    <title>Sports Booking Tracker (Cloud + Delete)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom scrollbar */
@@ -64,7 +64,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Sport Type</label>
+<label class="block text-sm font-medium text-gray-700 mb-1">Sport Type</label>
                         <select id="sport" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white">
                             <option value="Tennis">🎾 Tennis</option>
                             <option value="Badminton">🏸 Badminton</option>
@@ -133,9 +133,9 @@
         let bookings = [];
 
         // Format Date Helper
-        const formatDate = (dateString) => {
+const formatDate = (dateString) => {
             const date = new Date(dateString);
-            if (isNaN(date.getTime())) return dateString; // Fallback if invalid date
+            if (isNaN(date.getTime())) return dateString; 
             const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
             return date.toLocaleDateString('en-HK', options);
         };
@@ -145,8 +145,7 @@
             // Sort by date (nearest first)
             bookings.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
             
-            // Clear current list content (except loader/empty state logic)
-            // But actually we just rebuild the HTML string for simplicity here
+            // Rebuild HTML string for simplicity
             const itemsHtml = bookings.map((booking, index) => {
                 let icon = '🏅';
                 if(booking.sport === 'Tennis') icon = '🎾';
@@ -175,8 +174,7 @@
                                 </span>
                             </div>
                         </div>
-                        <!-- Delete disabled for Sheets version (requires complex row ID logic) -->
-                         <button onclick="alert('Deleting from Google Sheets via this simple app is not supported yet! You can delete rows directly in the Sheet.')" 
+                        <button onclick="deleteBooking('${booking.id}')" 
                                 class="text-gray-300 hover:text-red-500 p-2 rounded-full transition duration-200" title="Delete">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
@@ -187,12 +185,12 @@
             }).join('');
 
             list.innerHTML = itemsHtml;
-            list.appendChild(listLoader); // Keep loader element in DOM
-            list.appendChild(emptyState); // Keep empty state element in DOM
+            list.appendChild(listLoader);
+            list.appendChild(emptyState);
 
             if (bookings.length === 0) {
                 emptyState.classList.remove('hidden');
-                countBadge.classList.add('hidden');
+countBadge.classList.add('hidden');
             } else {
                 emptyState.classList.add('hidden');
                 countBadge.textContent = bookings.length;
@@ -201,35 +199,33 @@
         };
 
         // Fetch Data from Google Sheets
-            const fetchBookings = async () => {
+        const fetchBookings = async () => {
             listLoader.classList.remove('hidden');
             try {
-                // Add 'redirect: "follow"' to handle Google's 302 redirect
+                // Add redirect: 'follow' to ensure 302 redirects are followed
                 const response = await fetch(SCRIPT_URL, { redirect: "follow" });
                 const data = await response.json();
                 bookings = data;
                 renderBookings();
             } catch (error) {
                 console.error('Error fetching data:', error);
-                // Don't alert immediately on CORS error locally, check console first
                 if (window.location.protocol === 'file:') {
-                    alert('CORS Error: Local file access is restricted. Upload to GitHub Pages to fix this!');
+                    alert('CORS Error: Local file access blocked. Please upload to GitHub Pages!');
                 }
             } finally {
                 listLoader.classList.add('hidden');
             }
         };
 
-
         // Add Booking to Google Sheets
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // UI Loading State
             submitBtn.disabled = true;
             btnLoader.classList.remove('hidden');
 
             const newBooking = {
+                action: 'add',
                 facility: document.getElementById('facility').value,
                 datetime: document.getElementById('datetime').value,
                 location: document.getElementById('location').value,
@@ -238,28 +234,22 @@
             };
 
             try {
-                // Use fetch with 'no-cors' mode for Google Forms/Scripts usually, 
-                // BUT for JSON POST to work nicely we need to send as text/plain to avoid preflight issues
+                // 'no-cors' mode is critical for simple POST requests
                 await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    // 'no-cors' mode is required for simple POST to Google Scripts without preflight
-                    // But it means we can't read the response. That's okay for now.
                     mode: 'no-cors', 
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8',
-                    },
+                    headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(newBooking)
                 });
 
-
-                // Optimistic UI update (add to local list immediately)
+                // Optimistic UI update (requires fake ID for local display)
+                newBooking.id = Date.now().toString(); 
                 bookings.push(newBooking);
                 renderBookings();
                 form.reset();
-                alert('Booking added!');
-
-                // Re-fetch to confirm sync (optional, good for consistency)
-                // setTimeout(fetchBookings, 1000); 
+                
+                // Re-fetch shortly after to get real server data
+                setTimeout(fetchBookings, 1500);
 
             } catch (error) {
                 console.error('Error adding booking:', error);
@@ -269,6 +259,35 @@
                 btnLoader.classList.add('hidden');
             }
         });
+
+        // Delete Booking Function
+        window.deleteBooking = async (id) => {
+            if(!confirm('Delete this booking?')) return;
+            
+            // Optimistic UI Removal
+            const oldBookings = [...bookings];
+            bookings = bookings.filter(b => b.id != id); // Filter out deleted item
+            renderBookings();
+
+            try {
+                // Send Delete Request
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'delete', id: id })
+                });
+
+                // Re-fetch to confirm sync
+                setTimeout(fetchBookings, 1500);
+
+            } catch (error) {
+                console.error('Error deleting booking:', error);
+                alert('Failed to delete. Reverting...');
+                bookings = oldBookings; // Revert UI
+                renderBookings();
+            }
+        };
 
         // Initial Load
         fetchBookings();
