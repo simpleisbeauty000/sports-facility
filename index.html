@@ -157,7 +157,7 @@ class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none foc
             bookings.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
             
             // Rebuild HTML string for simplicity
-const itemsHtml = bookings.map((booking, index) => {
+        const itemsHtml = bookings.map((booking, index) => {
                 let icon = '🏅';
                 if(booking.sport === 'Tennis') icon = '🎾';
                 if(booking.sport === 'Badminton') icon = '🏸';
